@@ -4,6 +4,7 @@ from datetime import date
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import time
 
 # (၁) Page Config & CSS
 st.set_page_config(page_title="Premium POS", page_icon="📊", layout="centered")
@@ -91,6 +92,7 @@ if check_password():
                 try:
                     amount = float(clean_str)
                     
+                    # Google Sheet သို့ Row အသစ် တစ်ကြောင်း ထည့်ခြင်း
                     row_data = [str(trans_date), trans_type, account, desc, amount]
                     sheet.append_row(row_data)
                     
@@ -98,6 +100,9 @@ if check_password():
                         st.success(f"✅ ဝင်ငွေ {amount:,.0f} ကျပ် စာရင်းသွင်းပြီးပါပြီ!")
                     else:
                         st.error(f"🔻 ထွက်ငွေ {amount:,.0f} ကျပ် စာရင်းသွင်းပြီးပါပြီ!")
+                    
+                    # Google Sheet တွင် Save ဖြစ်ရန် ၁.၅ စက္ကန့် စောင့်ပေးခြင်း
+                    time.sleep(1.5)
                     
                     try:
                         st.rerun()
@@ -127,7 +132,7 @@ if check_password():
                 balance_color = "income-text" if system_total_balance >= 0 else "expense-text"
                 st.markdown(f"**ကွန်ပျူတာရှိငွေ (Total)**<br><span class='{balance_color}'>{system_total_balance:,.0f} Ks</span>", unsafe_allow_html=True)
             
-            # (၆) အကြွေးစာရင်း ဇယား
+            # (၆) အကြွေးစာရင်း ဇယား 
             st.markdown("---")
             st.subheader("👥 အကြွေးစာရင်း အကျဉ်းချုပ်")
             
@@ -200,13 +205,4 @@ if check_password():
             
             def highlight_rows(row):
                 if row['အမျိုးအစား'] == 'ဝင်ငွေ':
-                    return ['background-color: #e6ffe6; color: #004d00'] * len(row)
-                elif row['အမျိုးအစား'] == 'ထွက်ငွေ':
-                    return ['background-color: #ffe6e6; color: #800000'] * len(row)
-                return [''] * len(row)
-            
-            styled_df = df.style.apply(highlight_rows, axis=1).format({"ပမာဏ": "{:,.0f}"})
-            st.dataframe(styled_df, use_container_width=True)
-
-    except Exception as e:
-        st.error(f"Google Sheet နှင့် ချိတ်ဆက်ရာတွင် အခက်အခဲရှိနေပါသည်။ Error: {e}")
+                    return ['background-
