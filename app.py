@@ -67,10 +67,10 @@ def check_password():
 if check_password():
     st.title("📊 Premium POS & ငွေစာရင်းစနစ်")
     
-    # Update ချက်ချင်းဖြစ်စေရန် Message ပြသသည့်စနစ်
+    # 🌟 စာရင်းသွင်းပြီးကြောင်း အစိမ်းရောင်စာတမ်း ပြသရန်စနစ် (Flash Message)
     if 'flash_msg' in st.session_state:
         st.success(st.session_state['flash_msg'])
-        del st.session_state['flash_msg']
+        del st.session_state['flash_msg'] # ပြပြီးပါက ပြန်ဖျက်မည်
     
     try:
         client = init_connection()
@@ -102,10 +102,13 @@ if check_password():
                         row_data = [str(trans_date), trans_type, account, desc, amount]
                         sheet.append_row(row_data)
                         
-                        # မှတ်တမ်းဝင်ကြောင်း သိမ်းဆည်းပြီး ချက်ချင်း Refresh လုပ်ခြင်း
-                        st.session_state['flash_msg'] = f"✅ {trans_type} {amount:,.0f} ကျပ် စာရင်းသွင်းပြီးပါပြီ!"
-                        time.sleep(1.5)
+                        # 🌟 အောင်မြင်ကြောင်း စာသားကို မှတ်သားထားခြင်း
+                        st.session_state['flash_msg'] = f"✅ {trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!"
                         
+                        # Google Sheet မှ Save ချိန်ရရန် ၁ စက္ကန့် စောင့်ပေးခြင်း
+                        time.sleep(1)
+                        
+                        # 🌟 စာမျက်နှာကို ချက်ချင်း Refresh လုပ်ခြင်း (Update ဖြစ်စေရန်)
                         try:
                             st.rerun()
                         except AttributeError:
