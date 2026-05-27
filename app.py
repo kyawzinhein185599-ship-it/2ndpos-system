@@ -78,23 +78,19 @@ if check_password():
             with col1:
                 trans_date = st.date_input("ရက်စွဲ", date.today())
                 trans_type = st.selectbox("အမျိုးအစား", ["ဝင်ငွေ", "ထွက်ငွေ"])
-                # အမည်များ ပြောင်းလဲထားပါသည်
                 account = st.selectbox("အကောင့် / နေရာ", ["Cash", "Kpay", "Bank 1", "Bank 2", "ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"])
             with col2:
                 desc = st.text_input("အကြောင်းအရာ")
-                # မြန်မာလို ရိုက်လို့ရအောင် Text အနေနဲ့ လက်ခံပါမည်
                 amount_str = st.text_input("ပမာဏ (ကျပ်)", value="0")
             
             submitted = st.form_submit_button("စာရင်းသွင်းမည်")
             
             if submitted:
-                # မြန်မာဂဏန်းများကို အင်္ဂလိပ်သို့ပြောင်းပြီး ကော်မာ (,) များကို ဖယ်ရှားခြင်း
                 clean_str = convert_myanmar_numerals(amount_str).replace(',', '').strip()
                 
                 try:
                     amount = float(clean_str)
                     
-                    # Google Sheet သို့ Row အသစ် တစ်ကြောင်း ထည့်ခြင်း
                     row_data = [str(trans_date), trans_type, account, desc, amount]
                     sheet.append_row(row_data)
                     
@@ -103,7 +99,6 @@ if check_password():
                     else:
                         st.error(f"🔻 ထွက်ငွေ {amount:,.0f} ကျပ် စာရင်းသွင်းပြီးပါပြီ!")
                     
-                    # စာရင်းသွင်းပြီးသည်နှင့် UI ကို အလိုအလျောက် Refresh လုပ်ရန်
                     try:
                         st.rerun()
                     except AttributeError:
@@ -132,7 +127,7 @@ if check_password():
                 balance_color = "income-text" if balance >= 0 else "expense-text"
                 st.markdown(f"**လက်ကျန်ငွေ**<br><span class='{balance_color}'>{balance:,.0f} Ks</span>", unsafe_allow_html=True)
             
-            # (၆) အကြွေးစာရင်း ဇယား (အသစ် ထည့်သွင်းထားသည်)
+            # (၆) အကြွေးစာရင်း ဇယား
             st.markdown("---")
             st.subheader("👥 အကြွေးစာရင်း အကျဉ်းချုပ်")
             
@@ -140,14 +135,13 @@ if check_password():
             people = ["ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"]
             for p in people:
                 person_df = df[df['အကောင့်'] == p]
-                lent = person_df[person_df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum() # သူတို့ကို ချေးလိုက်သောငွေ (ထွက်ငွေ)
-                repaid = person_df[person_df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum() # သူတို့ ပြန်ဆပ်သောငွေ (ဝင်ငွေ)
+                lent = person_df[person_df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
+                repaid = person_df[person_df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
                 debt = lent - repaid
                 debt_list.append({'အမည်': p, 'ရရန်ရှိသော အကြွေး (Ks)': debt})
                 
             debt_df = pd.DataFrame(debt_list)
             
-            # အကြွေးဇယားကို အရောင်ချယ်ခြင်း (အကြွေးကျန်ရင် အနီရောင်၊ ကျေရင် အစိမ်းရောင်)
             def style_debt(row):
                 if row['ရရန်ရှိသော အကြွေး (Ks)'] > 0:
                     return ['background-color: #ffcccc; color: #cc0000; font-weight: bold'] * len(row)
@@ -159,7 +153,37 @@ if check_password():
             styled_debt = debt_df.style.apply(style_debt, axis=1).format({'ရရန်ရှိသော အကြွေး (Ks)': "{:,.0f}"})
             st.dataframe(styled_debt, use_container_width=True)
 
-            # (၇) နေ့စဉ်မှတ်တမ်း ဇယား
+            # (၇) နေ့စဉ် ငွေစာရင်း တိုက်ဆိုင်စစ်ဆေးခြင်း (Cash Reconciliation)
+            st.markdown("---")
+            st.subheader("⚖️ ငွေစာရင်း တိုက်ဆိုင်စစ်ဆေးခြင်း (Cash in Hand)")
+            
+            system_cash_in = df[(df['အမျိုးအစား'] == 'ဝင်ငွေ') & (df['အကောင့်'] == 'Cash')]['ပမာဏ'].sum()
+            system_cash_out = df[(df['အမျိုးအစား'] == 'ထွက်ငွေ') & (df['အကောင့်'] == 'Cash')]['ပမာဏ'].sum()
+            system_cash_balance = system_cash_in - system_cash_out
+            
+            col_x, col_y = st.columns(2)
+            with col_x:
+                st.info(f"💻 ကွန်ပျူတာရှိငွေ (Cash လက်ကျန်) : **{system_cash_balance:,.0f} Ks**")
+                
+            with col_y:
+                actual_cash_str = st.text_input("🖐️ ပြင်ပလက်ရှိငွေစစ်စစ် ရိုက်ထည့်ပါ", value="0")
+            
+            clean_actual_cash = convert_myanmar_numerals(actual_cash_str).replace(',', '').strip()
+            try:
+                actual_cash = float(clean_actual_cash)
+                if actual_cash > 0 or system_cash_balance != 0:
+                    variance = actual_cash - system_cash_balance
+                    
+                    if variance == 0:
+                        st.success("✅ စာရင်းကိုက်ညီပါသည်။ (ကွာခြားချက်မရှိပါ)")
+                    elif variance > 0:
+                        st.warning(f"⚠️ ငွေပိုနေပါသည်။ ကွာခြားချက်: + {variance:,.0f} Ks")
+                    else:
+                        st.error(f"🔻 ငွေလိုနေပါသည်။ ကွာခြားချက်: {variance:,.0f} Ks")
+            except ValueError:
+                st.error("ဂဏန်းမှန်ကန်စွာ ရိုက်ထည့်ပါ။")
+
+            # (၈) နေ့စဉ်မှတ်တမ်း ဇယား
             st.markdown("---")
             st.subheader("📋 နေ့စဉ် မှတ်တမ်းများ")
             
