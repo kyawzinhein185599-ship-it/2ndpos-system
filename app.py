@@ -164,8 +164,9 @@ if check_password():
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
             def get_net(acc_name):
-                return df[(df['အမျိုးအစား'] == 'ဝင်ငွေ') & (df['အကောင့်'] == acc_name)]['ပမာဏ'].sum() - \
-                       df[(df['အမျိုးအစား'] == 'ထွက်ငွေ') & (df['အကောင့်'] == acc_name)]['ပမာဏ'].sum()
+                in_amt = df[(df['အမျိုးအစား'] == 'ဝင်ငွေ') & (df['အကောင့်'] == acc_name)]['ပမာဏ'].sum()
+                out_amt = df[(df['အမျိုးအစား'] == 'ထွက်ငွေ') & (df['အကောင့်'] == acc_name)]['ပမာဏ'].sum()
+                return in_amt - out_amt
             
             kpay_bank_total = get_net('Kpay') + get_net('Bank 1') + get_net('Bank 2')
             
@@ -205,4 +206,13 @@ if check_password():
             
             def highlight_rows(row):
                 if row['အမျိုးအစား'] == 'ဝင်ငွေ':
-                    return ['background-
+                    return ['background-color: #e6ffe6; color: #004d00'] * len(row)
+                elif row['အမျိုးအစား'] == 'ထွက်ငွေ':
+                    return ['background-color: #ffe6e6; color: #800000'] * len(row)
+                return [''] * len(row)
+            
+            styled_df = df.style.apply(highlight_rows, axis=1).format({"ပမာဏ": "{:,.0f}"})
+            st.dataframe(styled_df, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Google Sheet နှင့် ချိတ်ဆက်ရာတွင် အခက်အခဲရှိနေပါသည်။ Error: {e}")
