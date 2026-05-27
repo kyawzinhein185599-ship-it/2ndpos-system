@@ -127,7 +127,7 @@ if check_password():
                 balance_color = "income-text" if system_total_balance >= 0 else "expense-text"
                 st.markdown(f"**ကွန်ပျူတာရှိငွေ (Total)**<br><span class='{balance_color}'>{system_total_balance:,.0f} Ks</span>", unsafe_allow_html=True)
             
-            # (၆) အကြွေးစာရင်း ဇယား (လူကြီးမင်း နှစ်သက်သော ဇယား)
+            # (၆) အကြွေးစာရင်း ဇယား
             st.markdown("---")
             st.subheader("👥 အကြွေးစာရင်း အကျဉ်းချုပ်")
             
@@ -137,3 +137,76 @@ if check_password():
                 person_df = df[df['အကောင့်'] == p]
                 lent = person_df[person_df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
                 repaid = person_df[person_df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
+                debt = lent - repaid
+                debt_list.append({'အမည်': p, 'ရရန်ရှိသော အကြွေး (Ks)': debt})
+                
+            debt_df = pd.DataFrame(debt_list)
+            total_debt = debt_df['ရရန်ရှိသော အကြွေး (Ks)'].sum()
+            
+            def style_debt(row):
+                if row['ရရန်ရှိသော အကြွေး (Ks)'] > 0:
+                    return ['background-color: #ffcccc; color: #cc0000; font-weight: bold'] * len(row)
+                elif row['ရရန်ရှိသော အကြွေး (Ks)'] < 0:
+                    return ['background-color: #ccffcc; color: #006600; font-weight: bold'] * len(row)
+                else:
+                    return ['background-color: #e6f2ff; color: #004080; font-weight: bold'] * len(row)
+            
+            styled_debt = debt_df.style.apply(style_debt, axis=1).format({'ရရန်ရှိသော အကြွေး (Ks)': "{:,.0f}"})
+            st.dataframe(styled_debt, use_container_width=True)
+
+            # (၇) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း
+            st.markdown("---")
+            st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
+            
+            def get_net(acc_name):
+                return df[(df['အမျိုးအစား'] == 'ဝင်ငွေ') & (df['အကောင့်'] == acc_name)]['ပမာဏ'].sum() - \
+                       df[(df['အမျိုးအစား'] == 'ထွက်ငွေ') & (df['အကောင့်'] == acc_name)]['ပမာဏ'].sum()
+            
+            kpay_bank_total = get_net('Kpay') + get_net('Bank 1') + get_net('Bank 2')
+            
+            actual_cash_str = st.text_input("🖐️ ပြင်ပရှိ လက်ကျန်ငွေစစ်စစ် (Cash) ရိုက်ထည့်ပါ", value="0")
+            clean_actual_cash = convert_myanmar_numerals(actual_cash_str).replace(',', '').strip()
+            
+            try:
+                actual_cash = float(clean_actual_cash)
+                
+                step_1 = system_total_balance - actual_cash
+                step_2 = step_1 - total_debt
+                final_variance = step_2 - kpay_bank_total
+                
+                if actual_cash > 0 or system_total_balance != 0:
+                    st.markdown(f"""
+                    <div class="step-box">
+                        <b>တွက်ချက်မှု အဆင့်ဆင့်:</b><br>
+                        🔹 အဆင့် ၁: ကွန်ပျူတာရှိငွေ ({system_total_balance:,.0f}) - ပြင်ပရှိငွေ ({actual_cash:,.0f}) = <b>{step_1:,.0f} Ks</b><br>
+                        🔹 အဆင့် ၂: ကွာခြားချက် ({step_1:,.0f}) - အကြွေးငွေ ({total_debt:,.0f}) = <b>{step_2:,.0f} Ks</b><br>
+                        🔹 အဆင့် ၃: ကွာခြားချက် ({step_2:,.0f}) - (Kpay+ဘဏ်၁+ဘဏ်၂) ({kpay_bank_total:,.0f}) = <b>{final_variance:,.0f} Ks</b>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if final_variance == 0:
+                        st.success("✅ စာရင်းအားလုံး တိကျစွာ ကိုက်ညီပါသည်။ (ကွာခြားချက်မရှိပါ)")
+                    elif final_variance > 0:
+                        st.warning(f"⚠️ စာရင်းမကိုက်ပါ။ ငွေပိုနေပါသည်။ (ကွာခြားချက်: + {final_variance:,.0f} Ks)")
+                    else:
+                        st.error(f"🔻 စာရင်းမကိုက်ပါ။ ငွေလိုနေပါသည်။ (ကွာခြားချက်: {final_variance:,.0f} Ks)")
+                        
+            except ValueError:
+                st.error("ဂဏန်းမှန်ကန်စွာ ရိုက်ထည့်ပါ။")
+
+            # (၈) နေ့စဉ်မှတ်တမ်း ဇယား
+            st.markdown("---")
+            st.subheader("📋 နေ့စဉ် မှတ်တမ်းများ")
+            
+            def highlight_rows(row):
+                if row['အမျိုးအစား'] == 'ဝင်ငွေ':
+                    return ['background-color: #e6ffe6; color: #004d00'] * len(row)
+                elif row['အမျိုးအစား'] == 'ထွက်ငွေ':
+                    return ['background-color: #ffe6e6; color: #800000'] * len(row)
+                return [''] * len(row)
+            
+            styled_df = df.style.apply(highlight_rows, axis=1).format({"ပမာဏ": "{:,.0f}"})
+            st.dataframe(styled_df, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Google Sheet နှင့် ချိတ်ဆက်ရာတွင် အခက်အခဲရှိနေပါသည်။ Error: {e}")
