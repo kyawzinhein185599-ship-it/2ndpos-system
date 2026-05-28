@@ -4,6 +4,7 @@ from datetime import date
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import time
 
 # (၁) Page Config & CSS
 st.set_page_config(page_title="Premium POS", page_icon="📊", layout="centered")
@@ -69,10 +70,27 @@ if check_password():
     try:
         client = init_connection()
         sheet = client.open(SHEET_NAME).sheet1
-        
-        # 🌟 Data ကို အပေါ်ဆုံးမှာ အရင်ဖတ်ထားမည်
-        df = get_data(sheet)
 
+        # Flash Message ပြသရန်
+        if 'flash' in st.session_state:
+            flash_msg = st.session_state['flash']['msg']
+            flash_type = st.session_state['flash']['type']
+            
+            if flash_type == "ဝင်ငွေ":
+                st.markdown(f"""
+                <div style="background-color: #d4edda; border-left: 6px solid #28a745; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h4 style="color: #155724; margin: 0;">✅ {flash_msg}</h4>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color: #f8d7da; border-left: 6px solid #dc3545; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h4 style="color: #721c24; margin: 0;">🔻 {flash_msg}</h4>
+                </div>
+                """, unsafe_allow_html=True)
+            del st.session_state['flash']
+
+        # 🌟 အဆင့် (၁) - စာရင်းသွင်းရန် ဖောင်
         with st.form("pos_form", clear_on_submit=True):
             st.subheader("📝 စာရင်းအသစ်သွင်းရန်")
             col1, col2 = st.columns(2)
@@ -86,43 +104,30 @@ if check_password():
             
             submitted = st.form_submit_button("စာရင်းသွင်းမည်")
             
-        # Form Submit နှိပ်လိုက်ပါက
         if submitted:
             clean_str = convert_myanmar_numerals(amount_str).replace(',', '').strip()
             try:
                 amount = float(clean_str)
                 if amount > 0:
-                    # ၁။ Google Sheet သို့ လှမ်းသိမ်းမည်
                     row_data = [str(trans_date), trans_type, account, desc, amount]
-                    sheet.append_row(row_data)
                     
-                    # ၂။ ချက်ချင်း Update ဖြစ်စေရန် စနစ်ထဲရှိ df သို့ ချက်ချင်း ကိုယ်တိုင်ပေါင်းထည့်မည် (Google ကိုစောင့်ရန်မလိုတော့ပါ)
-                    new_row = pd.DataFrame([row_data], columns=['ရက်စွဲ', 'အမျိုးအစား', 'အကောင့်', 'အကြောင်းအရာ', 'ပမာဏ'])
-                    if df.empty:
-                        df = new_row
-                    else:
-                        df = pd.concat([df, new_row], ignore_index=True)
+                    # 🌟 ပြုပြင်ထားသော နေရာ: အောက်ဆုံးသို့ မပို့တော့ဘဲ Row 2 (အပေါ်ဆုံး) တွင် အမြဲ အသစ်ဝင်စေမည်။
+                    sheet.insert_row(row_data, index=2)
                     
-                    # ၃။ ဝင်ငွေဆို အစိမ်း၊ ထွက်ငွေဆို အနီဖြင့် အောင်မြင်ကြောင်း စာတမ်းပြသမည်
-                    if trans_type == "ဝင်ငွေ":
-                        st.markdown(f"""
-                        <div style="background-color: #d4edda; border-left: 6px solid #28a745; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                            <h4 style="color: #155724; margin: 0;">✅ {trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!</h4>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""
-                        <div style="background-color: #f8d7da; border-left: 6px solid #dc3545; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                            <h4 style="color: #721c24; margin: 0;">🔻 {trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!</h4>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    st.session_state['flash'] = {
+                        'msg': f"{trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!",
+                        'type': trans_type
+                    }
+                    time.sleep(1) # Save ဖို့ ခဏစောင့်သည်
+                    st.rerun()
                 else:
                     st.error("❌ ပမာဏသည် 0 ထက် ကြီးရပါမည်။")
             except ValueError:
                 st.error("❌ ကျေးဇူးပြု၍ ပမာဏကို ဂဏန်းဖြင့်သာ မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
 
-        # --------------------- အောက်ပိုင်း ဇယားများ -----------------------
-        # အသစ်သွင်းလိုက်သော စာရင်းပါ ချက်ချင်းပါဝင်လာမည် ဖြစ်သည်
+        # 🌟 အဆင့် (၂) - Data များကို ပြန်ဖတ်မည်
+        df = get_data(sheet)
+
         if not df.empty:
             df['ပမာဏ'] = pd.to_numeric(df['ပမာဏ'], errors='coerce').fillna(0)
             
