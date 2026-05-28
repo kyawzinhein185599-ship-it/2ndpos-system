@@ -67,15 +67,32 @@ def check_password():
 if check_password():
     st.title("📊 Premium POS & ငွေစာရင်းစနစ်")
     
-    if 'flash_msg' in st.session_state:
-        st.success(st.session_state['flash_msg'])
-        del st.session_state['flash_msg']
-    
     try:
         client = init_connection()
         sheet = client.open(SHEET_NAME).sheet1
-        df = get_data(sheet)
 
+        # 🌟 စာရင်းသွင်းပြီးကြောင်း အရောင်စုံ စာတမ်းပြသရန်
+        if 'flash' in st.session_state:
+            flash_msg = st.session_state['flash']['msg']
+            flash_type = st.session_state['flash']['type']
+            
+            # ဝင်ငွေဆိုလျှင် အစိမ်းရောင် Box၊ ထွက်ငွေဆိုလျှင် အနီရောင် Box ဖြင့် ပြသမည်
+            if flash_type == "ဝင်ငွေ":
+                st.markdown(f"""
+                <div style="background-color: #d4edda; border-left: 6px solid #28a745; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h4 style="color: #155724; margin: 0;">✅ {flash_msg}</h4>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color: #f8d7da; border-left: 6px solid #dc3545; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                    <h4 style="color: #721c24; margin: 0;">🔻 {flash_msg}</h4>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            del st.session_state['flash']
+
+        # 🌟 အဆင့် (၁) - စာရင်းသွင်းရန် ဖောင်ကို အရင်ပြသမည်
         with st.form("pos_form", clear_on_submit=True):
             st.subheader("📝 စာရင်းအသစ်သွင်းရန်")
             col1, col2 = st.columns(2)
@@ -94,18 +111,26 @@ if check_password():
                 try:
                     amount = float(clean_str)
                     if amount > 0:
+                        # စာရင်းကို Google Sheet သို့ ပို့မည်
                         row_data = [str(trans_date), trans_type, account, desc, amount]
                         sheet.append_row(row_data)
-                        st.session_state['flash_msg'] = f"✅ {trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!"
-                        time.sleep(1)
-                        try:
-                            st.rerun()
-                        except AttributeError:
-                            st.experimental_rerun()
+                        
+                        # Message နှင့် အရောင်ပြောင်းရန် မှတ်သားမည်
+                        st.session_state['flash'] = {
+                            'msg': f"{trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!",
+                            'type': trans_type
+                        }
+                        
+                        # Google Sheet မှ Save ချိန်ရရန် ၁.၅ စက္ကန့် စောင့်ပြီးမှ Refresh လုပ်မည် (Update ချက်ချင်းဖြစ်စေရန်)
+                        time.sleep(1.5)
+                        st.rerun()
                     else:
                         st.error("❌ ပမာဏသည် 0 ထက် ကြီးရပါမည်။")
                 except ValueError:
                     st.error("❌ ကျေးဇူးပြု၍ ပမာဏကို ဂဏန်းဖြင့်သာ မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
+
+        # 🌟 အဆင့် (၂) - စာရင်းသွင်းပြီးမှ Data များကို လတ်တလော အသစ်အတိုင်း ပြန်ဖတ်မည်
+        df = get_data(sheet)
 
         if not df.empty:
             df['ပမာဏ'] = pd.to_numeric(df['ပမာဏ'], errors='coerce').fillna(0)
@@ -137,7 +162,7 @@ if check_password():
                 debt_list.append({'အမည်': p, 'ရရန်ရှိသော အကြွေး (Ks)': lent - repaid})
                 
             debt_df = pd.DataFrame(debt_list)
-            total_debt = debt_df['ရရန်ရှိသော အကြွေး (Ks)'].sum() # စုစုပေါင်း အကြွေး
+            total_debt = debt_df['ရရန်ရှိသော အကြွေး (Ks)'].sum()
             
             def style_debt(row):
                 if row['ရရန်ရှိသော အကြွေး (Ks)'] > 0:
@@ -148,7 +173,7 @@ if check_password():
             
             st.dataframe(debt_df.style.apply(style_debt, axis=1).format({'ရရန်ရှိသော အကြွေး (Ks)': "{:,.0f}"}), use_container_width=True)
 
-            # (၇) ဘဏ် နှင့် Kpay စာရင်း ဇယား (အသစ်ထည့်သွင်းခြင်း)
+            # (၇) ဘဏ် နှင့် Kpay စာရင်း ဇယား
             st.markdown("---")
             st.subheader("🏦 ဘဏ် နှင့် Kpay လက်ကျန်စာရင်း")
             bank_list = []
@@ -159,10 +184,10 @@ if check_password():
                 bank_list.append({'ဘဏ် / အကောင့်': b, 'လက်ကျန်ငွေ (Ks)': b_in - b_out})
                 
             bank_table_df = pd.DataFrame(bank_list)
-            total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum() # Kpay + Bank 1 + Bank 2 စုစုပေါင်း
+            total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum()
             st.dataframe(bank_table_df.style.format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
 
-            # (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း (လူကြီးမင်း တောင်းဆိုထားသည့် အဆင့်ဆင့် တွက်ချက်မှု)
+            # (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
             st.markdown("---")
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
@@ -180,7 +205,6 @@ if check_password():
                     comp_bal = float(clean_comp_bal)
                     actual_cash = float(clean_actual_cash)
                     
-                    # တွက်ချက်မှု အဆင့်ဆင့်
                     step_1 = comp_bal - actual_cash
                     step_2 = step_1 - total_debt
                     final_variance = step_2 - total_bank
