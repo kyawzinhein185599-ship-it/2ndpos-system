@@ -71,7 +71,7 @@ if check_password():
         client = init_connection()
         sheet = client.open(SHEET_NAME).sheet1
 
-        # Flash Message ပြသရန်
+        # 🌟 ချက်ချင်း Update ဖြစ်ကြောင်း ပြသရန် (Flash Message)
         if 'flash' in st.session_state:
             flash_msg = st.session_state['flash']['msg']
             flash_type = st.session_state['flash']['type']
@@ -111,27 +111,33 @@ if check_password():
                 if amount > 0:
                     row_data = [str(trans_date), trans_type, account, desc, amount]
                     
-                    # 🌟 ပြုပြင်ထားသော နေရာ: အောက်ဆုံးသို့ မပို့တော့ဘဲ Row 2 (အပေါ်ဆုံး) တွင် အမြဲ အသစ်ဝင်စေမည်။
+                    # Google Sheet ၏ Row 2 တွင် အမြဲ အသစ်ဝင်စေမည် (အလွတ်တွေထဲ သွားမပုန်းစေရန်)
                     sheet.insert_row(row_data, index=2)
                     
+                    # အောင်မြင်ကြောင်း စာတမ်းအတွက် မှတ်သားထားမည်
                     st.session_state['flash'] = {
                         'msg': f"{trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!",
                         'type': trans_type
                     }
-                    time.sleep(1) # Save ဖို့ ခဏစောင့်သည်
-                    st.rerun()
+                    time.sleep(1) # Google API Save ချိန် ၁ စက္ကန့် စောင့်မည်
+                    
+                    # စာမျက်နှာကို ချက်ချင်း Refresh လုပ်မည်
+                    try:
+                        st.rerun()
+                    except AttributeError:
+                        st.experimental_rerun()
                 else:
                     st.error("❌ ပမာဏသည် 0 ထက် ကြီးရပါမည်။")
             except ValueError:
                 st.error("❌ ကျေးဇူးပြု၍ ပမာဏကို ဂဏန်းဖြင့်သာ မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
 
-        # 🌟 အဆင့် (၂) - Data များကို ပြန်ဖတ်မည်
+        # 🌟 အဆင့် (၂) - Data အသစ်များကို ချက်ချင်း ပြန်ဖတ်မည်
         df = get_data(sheet)
 
         if not df.empty:
             df['ပမာဏ'] = pd.to_numeric(df['ပမာဏ'], errors='coerce').fillna(0)
             
-            # (၅) အကျဉ်းချုပ် 
+            # (၅) ယနေ့ အကျဉ်းချုပ် တွက်ချက်ခြင်း
             total_income = df[df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
             total_expense = df[df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
             system_total_balance = total_income - total_expense
@@ -147,7 +153,7 @@ if check_password():
                 balance_color = "income-text" if system_total_balance >= 0 else "expense-text"
                 st.markdown(f"**ကွန်ပျူတာရှိငွေ စုစုပေါင်း**<br><span class='{balance_color}'>{system_total_balance:,.0f} Ks</span>", unsafe_allow_html=True)
             
-            # (၆) အကြွေးစာရင်း ဇယား
+            # (၆) အကြွေးစာရင်း ဇယား (လူ ၄ ယောက်)
             st.markdown("---")
             st.subheader("👥 အကြွေးစာရင်း အကျဉ်းချုပ်")
             debt_list = []
@@ -183,49 +189,62 @@ if check_password():
             total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum()
             st.dataframe(bank_table_df.style.format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
 
-            # (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
+            # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
             st.markdown("---")
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
+            # လက်ကျန်ငွေသားကို အမြဲတမ်း မှတ်ထားပေးမည့်စနစ်
+            if 'saved_actual_cash' not in st.session_state:
+                st.session_state['saved_actual_cash'] = "0"
+                
+            def update_actual_cash():
+                st.session_state['saved_actual_cash'] = st.session_state['actual_cash_widget']
+
             col_x, col_y = st.columns(2)
             with col_x:
                 comp_bal_str = st.text_input("💻 ကွန်ပျူတာရှိ စာရင်းရှိငွေ", value=str(int(system_total_balance)))
             with col_y:
-                actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", value="0")
+                actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", 
+                                                value=st.session_state['saved_actual_cash'], 
+                                                key="actual_cash_widget", 
+                                                on_change=update_actual_cash)
                 
             clean_comp_bal = convert_myanmar_numerals(comp_bal_str).replace(',', '').strip()
             clean_actual_cash = convert_myanmar_numerals(actual_cash_str).replace(',', '').strip()
             
-            if clean_actual_cash != "" and clean_comp_bal != "":
-                try:
-                    comp_bal = float(clean_comp_bal)
-                    actual_cash = float(clean_actual_cash)
-                    
-                    step_1 = comp_bal - actual_cash
-                    step_2 = step_1 - total_debt
-                    final_variance = step_2 - total_bank
-                    
-                    st.markdown(f"""
-                    <div class="step-box">
-                        <b style="font-size: 18px;">တွက်ချက်မှု အဆင့်ဆင့်:</b><br><br>
-                        🔹 <b>အဆင့် ၁:</b> ကွန်ပျူတာရှိငွေ ({comp_bal:,.0f}) မှ ပြင်ပလက်ကျန်ငွေ ({actual_cash:,.0f}) ကိုနှုတ်ခြင်း<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_1:,.0f} Ks</b><br><br>
-                        🔹 <b>အဆင့် ၂:</b> ရလဒ် ({step_1:,.0f}) မှ လူ(၄)ယောက်၏ အကြွေးစုစုပေါင်း ({total_debt:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_2:,.0f} Ks</b><br><br>
-                        🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;နောက်ဆုံး ကွာခြားချက် = <b style="color: {'#1e7e34' if final_variance == 0 else '#dc3545'}; font-size: 20px;">{final_variance:,.0f} Ks</b>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if final_variance == 0:
-                        st.success("✅ စာရင်းအားလုံး တိကျစွာ ကိုက်ညီပါသည်။ (ကွာခြားချက်မရှိပါ)")
-                    elif final_variance > 0:
-                        st.error(f"🔻 စာရင်းမကိုက်ပါ။ {final_variance:,.0f} ကျပ် လိုနေပါသည် (ငွေလိုနေသည်)။")
-                    else:
-                        st.warning(f"⚠️ စာရင်းမကိုက်ပါ။ {abs(final_variance):,.0f} ကျပ် ပိုနေပါသည် (ငွေပိုနေသည်)။")
-                            
-                except ValueError:
-                    st.error("ဂဏန်းများကို မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
+            if clean_comp_bal == "": clean_comp_bal = "0"
+            if clean_actual_cash == "": clean_actual_cash = "0"
+            
+            try:
+                comp_bal = float(clean_comp_bal)
+                actual_cash = float(clean_actual_cash)
+                
+                # တွက်ချက်မှု အဆင့် (၃) ဆင့်
+                step_1 = comp_bal - actual_cash
+                step_2 = step_1 - total_debt
+                final_variance = step_2 - total_bank
+                
+                st.markdown(f"""
+                <div class="step-box">
+                    <b style="font-size: 18px;">တွက်ချက်မှု အဆင့်ဆင့်:</b><br><br>
+                    🔹 <b>အဆင့် ၁:</b> ကွန်ပျူတာရှိငွေ ({comp_bal:,.0f}) မှ ပြင်ပလက်ကျန်ငွေ ({actual_cash:,.0f}) ကိုနှုတ်ခြင်း<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_1:,.0f} Ks</b><br><br>
+                    🔹 <b>အဆင့် ၂:</b> ရလဒ် ({step_1:,.0f}) မှ လူ(၄)ယောက်၏ အကြွေးစုစုပေါင်း ({total_debt:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_2:,.0f} Ks</b><br><br>
+                    🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;နောက်ဆုံး ကွာခြားချက် = <b style="color: {'#1e7e34' if final_variance == 0 else '#dc3545'}; font-size: 20px;">{final_variance:,.0f} Ks</b>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if final_variance == 0:
+                    st.success("✅ စာရင်းအားလုံး တိကျစွာ ကိုက်ညီပါသည်။ (ကွာခြားချက်မရှိပါ)")
+                elif final_variance > 0:
+                    st.error(f"🔻 စာရင်းမကိုက်ပါ။ {final_variance:,.0f} ကျပ် လိုနေပါသည် (ငွေလိုနေသည်)။")
+                else:
+                    st.warning(f"⚠️ စာရင်းမကိုက်ပါ။ {abs(final_variance):,.0f} ကျပ် ပိုနေပါသည် (ငွေပိုနေသည်)။")
+                        
+            except ValueError:
+                st.error("ဂဏန်းများကို မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
 
             # (၉) နေ့စဉ်မှတ်တမ်း ဇယား
             st.markdown("---")
