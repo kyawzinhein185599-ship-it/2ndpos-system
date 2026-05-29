@@ -136,7 +136,7 @@ if check_password():
                 st.session_state['saved_comp'] = settings_ws.acell('B1').value
                 st.session_state['saved_actual'] = settings_ws.acell('B2').value
             except Exception:
-                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည် (Error ရှင်းလင်းထားသည်)
+                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည် 
                 settings_ws = client.open(SHEET_NAME).add_worksheet(title="Saved_Balances", rows=5, cols=2)
                 settings_ws.update_acell('A1', "Computer Balance")
                 settings_ws.update_acell('A2', "Actual Cash")
@@ -198,21 +198,47 @@ if check_password():
                 
             bank_table_df = pd.DataFrame(bank_list)
             total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum()
-            st.dataframe(bank_table_df.style.format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
+            
+            # 🌟 ဘဏ်/Kpay ဇယားကို အရောင်ချယ်သည့် Function အသစ်
+            def style_bank(row):
+                if row['လက်ကျန်ငွေ (Ks)'] > 0:
+                    return ['background-color: #e6ffe6; color: #004d00; font-weight: bold'] * len(row)
+                elif row['လက်ကျန်ငွေ (Ks)'] < 0:
+                    return ['background-color: #ffe6e6; color: #800000; font-weight: bold'] * len(row)
+                return ['background-color: #f8f9fa; color: #6c757d; font-weight: bold'] * len(row)
+                
+            st.dataframe(bank_table_df.style.apply(style_bank, axis=1).format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
 
             # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
             st.markdown("---")
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
-            # မူလတန်ဖိုးများကို သတ်မှတ်ပေးခြင်း
-            default_comp = st.session_state['saved_comp'] if st.session_state['saved_comp'] else str(int(system_total_balance))
-            default_actual = st.session_state['saved_actual'] if st.session_state['saved_actual'] else "0"
+            # Input ရိုက်ထည့်လိုက်ပါက Session ကို ချက်ချင်း Update လုပ်မည့် Function
+            def update_actual_cash():
+                val = str(st.session_state['actual_cash_widget']).replace(',', '').strip()
+                st.session_state['saved_actual'] = val if val else "0"
+
+            # 🌟 ကော်မာဖြင့် ဖော်ပြနိုင်ရန် ဖော်မတ်ပြောင်းခြင်း
+            try:
+                raw_comp = str(st.session_state['saved_comp']).replace(',', '').strip() if st.session_state['saved_comp'] else str(system_total_balance)
+                default_comp = f"{float(raw_comp):,.0f}"
+            except:
+                default_comp = "0"
+                
+            try:
+                raw_actual = str(st.session_state['saved_actual']).replace(',', '').strip() if st.session_state['saved_actual'] else "0"
+                default_actual = f"{float(raw_actual):,.0f}"
+            except:
+                default_actual = "0"
 
             col_x, col_y = st.columns(2)
             with col_x:
                 comp_bal_str = st.text_input("💻 ကွန်ပျူတာရှိ စာရင်းရှိငွေ", value=default_comp)
             with col_y:
-                actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", value=default_actual)
+                actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", 
+                                                value=default_actual, 
+                                                key="actual_cash_widget",
+                                                on_change=update_actual_cash)
                 
             clean_comp_bal = convert_myanmar_numerals(comp_bal_str).replace(',', '').strip()
             clean_actual_cash = convert_myanmar_numerals(actual_cash_str).replace(',', '').strip()
@@ -220,11 +246,10 @@ if check_password():
             if clean_comp_bal == "": clean_comp_bal = "0"
             if clean_actual_cash == "": clean_actual_cash = "0"
             
-            # 🌟 ဂဏန်းများကို အမြဲတမ်းမှတ်သားပေးမည့် Save Button (Error ရှင်းလင်းထားသည်)
+            # 🌟 ဂဏန်းများကို အမြဲတမ်းမှတ်သားပေးမည့် Save Button
             if st.button("💾 ပြင်ဆင်ထားသော ငွေပမာဏများကို အမြဲတမ်းမှတ်သားမည်"):
                 try:
                     settings_ws = client.open(SHEET_NAME).worksheet("Saved_Balances")
-                    # 'B1' နှင့် 'B2' ဟု အတိအကျ Cell နာမည်ကို အသုံးပြုထားသည်
                     settings_ws.update_acell('B1', clean_comp_bal)
                     settings_ws.update_acell('B2', clean_actual_cash)
                     
