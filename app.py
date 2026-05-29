@@ -136,10 +136,10 @@ if check_password():
                 st.session_state['saved_comp'] = settings_ws.acell('B1').value
                 st.session_state['saved_actual'] = settings_ws.acell('B2').value
             except Exception:
-                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည်
+                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည် (Error ရှင်းလင်းထားသည်)
                 settings_ws = client.open(SHEET_NAME).add_worksheet(title="Saved_Balances", rows=5, cols=2)
-                settings_ws.update_acell(1, 1, "Computer Balance")
-                settings_ws.update_acell(2, 1, "Actual Cash")
+                settings_ws.update_acell('A1', "Computer Balance")
+                settings_ws.update_acell('A2', "Actual Cash")
                 st.session_state['saved_comp'] = None
                 st.session_state['saved_actual'] = "0"
             
@@ -204,7 +204,7 @@ if check_password():
             st.markdown("---")
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
-            # မူလတန်ဖိုးများကို သတ်မှတ်ပေးခြင်း (ယခင်မှတ်သားထားသော တန်ဖိုးရှိပါက ၎င်းကိုသုံးမည်)
+            # မူလတန်ဖိုးများကို သတ်မှတ်ပေးခြင်း
             default_comp = st.session_state['saved_comp'] if st.session_state['saved_comp'] else str(int(system_total_balance))
             default_actual = st.session_state['saved_actual'] if st.session_state['saved_actual'] else "0"
 
@@ -220,12 +220,13 @@ if check_password():
             if clean_comp_bal == "": clean_comp_bal = "0"
             if clean_actual_cash == "": clean_actual_cash = "0"
             
-            # 🌟 ဂဏန်းများကို အမြဲတမ်းမှတ်သားပေးမည့် Save Button
+            # 🌟 ဂဏန်းများကို အမြဲတမ်းမှတ်သားပေးမည့် Save Button (Error ရှင်းလင်းထားသည်)
             if st.button("💾 ပြင်ဆင်ထားသော ငွေပမာဏများကို အမြဲတမ်းမှတ်သားမည်"):
                 try:
                     settings_ws = client.open(SHEET_NAME).worksheet("Saved_Balances")
-                    settings_ws.update_acell(1, 2, clean_comp_bal)
-                    settings_ws.update_acell(2, 2, clean_actual_cash)
+                    # 'B1' နှင့် 'B2' ဟု အတိအကျ Cell နာမည်ကို အသုံးပြုထားသည်
+                    settings_ws.update_acell('B1', clean_comp_bal)
+                    settings_ws.update_acell('B2', clean_actual_cash)
                     
                     st.session_state['saved_comp'] = clean_comp_bal
                     st.session_state['saved_actual'] = clean_actual_cash
