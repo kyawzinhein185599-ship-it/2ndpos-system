@@ -110,18 +110,13 @@ if check_password():
                 amount = float(clean_str)
                 if amount > 0:
                     row_data = [str(trans_date), trans_type, account, desc, amount]
-                    
-                    # Google Sheet ၏ Row 2 တွင် အမြဲ အသစ်ဝင်စေမည် (အလွတ်တွေထဲ သွားမပုန်းစေရန်)
                     sheet.insert_row(row_data, index=2)
                     
-                    # အောင်မြင်ကြောင်း စာတမ်းအတွက် မှတ်သားထားမည်
                     st.session_state['flash'] = {
                         'msg': f"{trans_type} {amount:,.0f} ကျပ် အောင်မြင်စွာ စာရင်းသွင်းပြီးပါပြီ!",
                         'type': trans_type
                     }
-                    time.sleep(1) # Google API Save ချိန် ၁ စက္ကန့် စောင့်မည်
-                    
-                    # စာမျက်နှာကို ချက်ချင်း Refresh လုပ်မည်
+                    time.sleep(1)
                     try:
                         st.rerun()
                     except AttributeError:
@@ -131,8 +126,24 @@ if check_password():
             except ValueError:
                 st.error("❌ ကျေးဇူးပြု၍ ပမာဏကို ဂဏန်းဖြင့်သာ မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
 
-        # 🌟 အဆင့် (၂) - Data အသစ်များကို ချက်ချင်း ပြန်ဖတ်မည်
+        # 🌟 Data အသစ်များကို ချက်ချင်း ပြန်ဖတ်မည်
         df = get_data(sheet)
+
+        # 🌟 App အဖွင့်တွင် သိမ်းဆည်းထားသော ငွေပမာဏများကို တစ်ကြိမ်သာ Google Sheet မှ လှမ်းဖတ်မည်
+        if 'saved_balances_fetched' not in st.session_state:
+            try:
+                settings_ws = client.open(SHEET_NAME).worksheet("Saved_Balances")
+                st.session_state['saved_comp'] = settings_ws.acell('B1').value
+                st.session_state['saved_actual'] = settings_ws.acell('B2').value
+            except Exception:
+                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည်
+                settings_ws = client.open(SHEET_NAME).add_worksheet(title="Saved_Balances", rows=5, cols=2)
+                settings_ws.update_acell(1, 1, "Computer Balance")
+                settings_ws.update_acell(2, 1, "Actual Cash")
+                st.session_state['saved_comp'] = None
+                st.session_state['saved_actual'] = "0"
+            
+            st.session_state['saved_balances_fetched'] = True
 
         if not df.empty:
             df['ပမာဏ'] = pd.to_numeric(df['ပမာဏ'], errors='coerce').fillna(0)
@@ -193,21 +204,15 @@ if check_password():
             st.markdown("---")
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
-            # လက်ကျန်ငွေသားကို အမြဲတမ်း မှတ်ထားပေးမည့်စနစ်
-            if 'saved_actual_cash' not in st.session_state:
-                st.session_state['saved_actual_cash'] = "0"
-                
-            def update_actual_cash():
-                st.session_state['saved_actual_cash'] = st.session_state['actual_cash_widget']
+            # မူလတန်ဖိုးများကို သတ်မှတ်ပေးခြင်း (ယခင်မှတ်သားထားသော တန်ဖိုးရှိပါက ၎င်းကိုသုံးမည်)
+            default_comp = st.session_state['saved_comp'] if st.session_state['saved_comp'] else str(int(system_total_balance))
+            default_actual = st.session_state['saved_actual'] if st.session_state['saved_actual'] else "0"
 
             col_x, col_y = st.columns(2)
             with col_x:
-                comp_bal_str = st.text_input("💻 ကွန်ပျူတာရှိ စာရင်းရှိငွေ", value=str(int(system_total_balance)))
+                comp_bal_str = st.text_input("💻 ကွန်ပျူတာရှိ စာရင်းရှိငွေ", value=default_comp)
             with col_y:
-                actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", 
-                                                value=st.session_state['saved_actual_cash'], 
-                                                key="actual_cash_widget", 
-                                                on_change=update_actual_cash)
+                actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", value=default_actual)
                 
             clean_comp_bal = convert_myanmar_numerals(comp_bal_str).replace(',', '').strip()
             clean_actual_cash = convert_myanmar_numerals(actual_cash_str).replace(',', '').strip()
@@ -215,6 +220,24 @@ if check_password():
             if clean_comp_bal == "": clean_comp_bal = "0"
             if clean_actual_cash == "": clean_actual_cash = "0"
             
+            # 🌟 ဂဏန်းများကို အမြဲတမ်းမှတ်သားပေးမည့် Save Button
+            if st.button("💾 ပြင်ဆင်ထားသော ငွေပမာဏများကို အမြဲတမ်းမှတ်သားမည်"):
+                try:
+                    settings_ws = client.open(SHEET_NAME).worksheet("Saved_Balances")
+                    settings_ws.update_acell(1, 2, clean_comp_bal)
+                    settings_ws.update_acell(2, 2, clean_actual_cash)
+                    
+                    st.session_state['saved_comp'] = clean_comp_bal
+                    st.session_state['saved_actual'] = clean_actual_cash
+                    st.success("✅ အောင်မြင်စွာ မှတ်သားပြီးပါပြီ! App ပိတ်ပြီး ပြန်ဖွင့်လျှင်လည်း ဤဂဏန်းများအတိုင်း ပြသပါမည်။")
+                    time.sleep(1.5)
+                    try:
+                        st.rerun()
+                    except AttributeError:
+                        st.experimental_rerun()
+                except Exception as e:
+                    st.error(f"Save လုပ်ရာတွင် အခက်အခဲရှိနေပါသည် - {e}")
+
             try:
                 comp_bal = float(clean_comp_bal)
                 actual_cash = float(clean_actual_cash)
