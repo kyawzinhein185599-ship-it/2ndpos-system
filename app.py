@@ -129,18 +129,16 @@ if check_password():
         # 🌟 Data အသစ်များကို ချက်ချင်း ပြန်ဖတ်မည်
         df = get_data(sheet)
 
-        # 🌟 App အဖွင့်တွင် သိမ်းဆည်းထားသော ငွေပမာဏများကို တစ်ကြိမ်သာ Google Sheet မှ လှမ်းဖတ်မည်
+        # 🌟 App အဖွင့်တွင် သိမ်းဆည်းထားသော "ပြင်ပလက်ကျန်ငွေ" ကို Google Sheet မှ လှမ်းဖတ်မည်
         if 'saved_balances_fetched' not in st.session_state:
             try:
                 settings_ws = client.open(SHEET_NAME).worksheet("Saved_Balances")
-                st.session_state['saved_comp'] = settings_ws.acell('B1').value
                 st.session_state['saved_actual'] = settings_ws.acell('B2').value
             except Exception:
-                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည် 
+                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည်
                 settings_ws = client.open(SHEET_NAME).add_worksheet(title="Saved_Balances", rows=5, cols=2)
-                settings_ws.update_acell('A1', "Computer Balance")
+                settings_ws.update_acell('A1', "Computer Balance (Auto)")
                 settings_ws.update_acell('A2', "Actual Cash")
-                st.session_state['saved_comp'] = None
                 st.session_state['saved_actual'] = "0"
             
             st.session_state['saved_balances_fetched'] = True
@@ -148,7 +146,7 @@ if check_password():
         if not df.empty:
             df['ပမာဏ'] = pd.to_numeric(df['ပမာဏ'], errors='coerce').fillna(0)
             
-            # (၅) ယနေ့ အကျဉ်းချုပ် တွက်ချက်ခြင်း
+            # (၅) ယနေ့ အကျဉ်းချုပ် တွက်ချက်ခြင်း (စာရင်းဝင်သမျှ အားလုံးကို အတိအကျ ပေါင်းပြမည်)
             total_income = df[df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
             total_expense = df[df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
             system_total_balance = total_income - total_expense
@@ -168,7 +166,8 @@ if check_password():
             st.markdown("---")
             st.subheader("👥 အကြွေးစာရင်း အကျဉ်းချုပ်")
             debt_list = []
-            for p in ["ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"]:
+            people = ["ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"]
+            for p in people:
                 person_df = df[df['အကောင့်'] == p]
                 lent = person_df[person_df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
                 repaid = person_df[person_df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
@@ -199,7 +198,6 @@ if check_password():
             bank_table_df = pd.DataFrame(bank_list)
             total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum()
             
-            # 🌟 ဘဏ်/Kpay ဇယားကို အရောင်ချယ်သည့် Function အသစ်
             def style_bank(row):
                 if row['လက်ကျန်ငွေ (Ks)'] > 0:
                     return ['background-color: #e6ffe6; color: #004d00; font-weight: bold'] * len(row)
@@ -209,21 +207,23 @@ if check_password():
                 
             st.dataframe(bank_table_df.style.apply(style_bank, axis=1).format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
 
-            # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
+            # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း (Math တွက်ချက်မှု အသေအချာ ပြင်ဆင်ထားသည်)
             st.markdown("---")
             st.subheader("⚖️ စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း")
             
-            # Input ရိုက်ထည့်လိုက်ပါက Session ကို ချက်ချင်း Update လုပ်မည့် Function
+            # စာရင်းချုပ်ရန်အတွက် "အသားတင် ပိုင်ဆိုင်မှု (Total Assets)" ကို တွက်ချက်ခြင်း 
+            # (အကြွေးပေး/ဆပ် ခြင်းသည် ပိုင်ဆိုင်မှုကို မပြောင်းလဲစေသောကြောင့် ၎င်းတို့ကို ဖယ်ထုတ်တွက်ချက်ပါသည်)
+            real_df = df[~df['အကောင့်'].isin(people)]
+            real_income = real_df[real_df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
+            real_expense = real_df[real_df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
+            total_assets = real_income - real_expense
+
             def update_actual_cash():
                 val = str(st.session_state['actual_cash_widget']).replace(',', '').strip()
                 st.session_state['saved_actual'] = val if val else "0"
 
-            # 🌟 ကော်မာဖြင့် ဖော်ပြနိုင်ရန် ဖော်မတ်ပြောင်းခြင်း
-            try:
-                raw_comp = str(st.session_state['saved_comp']).replace(',', '').strip() if st.session_state['saved_comp'] else str(system_total_balance)
-                default_comp = f"{float(raw_comp):,.0f}"
-            except:
-                default_comp = "0"
+            # ကွန်ပျူတာရှိငွေကို Auto တွက်ထားသော Total Assets ဖြင့် အမြဲပြသမည်
+            default_comp = f"{int(total_assets):,.0f}"
                 
             try:
                 raw_actual = str(st.session_state['saved_actual']).replace(',', '').strip() if st.session_state['saved_actual'] else "0"
@@ -233,7 +233,8 @@ if check_password():
 
             col_x, col_y = st.columns(2)
             with col_x:
-                comp_bal_str = st.text_input("💻 ကွန်ပျူတာရှိ စာရင်းရှိငွေ", value=default_comp)
+                # ဤအကွက်သည် အကြွေးများကိုပါ ထည့်သွင်းစဉ်းစားထားသောကြောင့် အကျဉ်းချုပ်ဇယားမှ Balance နှင့် ကွာခြားနိုင်သည်
+                comp_bal_str = st.text_input("💻 ကွန်ပျူတာရှိ စာရင်းရှိငွေ (Auto)", value=default_comp)
             with col_y:
                 actual_cash_str = st.text_input("🖐️ လက်ကျန်ငွေသား (ပြင်ပရှိအမှန်တကယ်ငွေ)", 
                                                 value=default_actual, 
@@ -246,16 +247,14 @@ if check_password():
             if clean_comp_bal == "": clean_comp_bal = "0"
             if clean_actual_cash == "": clean_actual_cash = "0"
             
-            # 🌟 ဂဏန်းများကို အမြဲတမ်းမှတ်သားပေးမည့် Save Button
-            if st.button("💾 ပြင်ဆင်ထားသော ငွေပမာဏများကို အမြဲတမ်းမှတ်သားမည်"):
+            # 🌟 ပြင်ပလက်ကျန်ငွေ ကိုသာ အမြဲတမ်းမှတ်သားပေးမည့် Save Button
+            if st.button("💾 ပြင်ပလက်ကျန်ငွေ (Actual Cash) ကို အမြဲတမ်းမှတ်သားမည်"):
                 try:
                     settings_ws = client.open(SHEET_NAME).worksheet("Saved_Balances")
-                    settings_ws.update_acell('B1', clean_comp_bal)
                     settings_ws.update_acell('B2', clean_actual_cash)
                     
-                    st.session_state['saved_comp'] = clean_comp_bal
                     st.session_state['saved_actual'] = clean_actual_cash
-                    st.success("✅ အောင်မြင်စွာ မှတ်သားပြီးပါပြီ! App ပိတ်ပြီး ပြန်ဖွင့်လျှင်လည်း ဤဂဏန်းများအတိုင်း ပြသပါမည်။")
+                    st.success("✅ အောင်မြင်စွာ မှတ်သားပြီးပါပြီ! App ပိတ်ပြီး ပြန်ဖွင့်လျှင်လည်း ဤဂဏန်းအတိုင်း ပြသပါမည်။")
                     time.sleep(1.5)
                     try:
                         st.rerun()
@@ -268,7 +267,7 @@ if check_password():
                 comp_bal = float(clean_comp_bal)
                 actual_cash = float(clean_actual_cash)
                 
-                # တွက်ချက်မှု အဆင့် (၃) ဆင့်
+                # လူကြီးမင်း တောင်းဆိုထားသည့်အတိုင်း တွက်ချက်မှု အဆင့် (၃) ဆင့်
                 step_1 = comp_bal - actual_cash
                 step_2 = step_1 - total_debt
                 final_variance = step_2 - total_bank
