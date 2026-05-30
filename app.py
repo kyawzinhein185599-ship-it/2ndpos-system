@@ -8,12 +8,46 @@ import time
 
 # (၁) Page Config & CSS
 st.set_page_config(page_title="Premium POS", page_icon="📊", layout="centered")
+
+# 🌟 App ကို လှပအောင် တန်ဆာဆင်ထားသော Custom CSS
 st.markdown("""
     <style>
-    .income-text { color: #1e7e34; font-weight: bold; font-size: 26px;}
-    .expense-text { color: #dc3545; font-weight: bold; font-size: 26px;}
-    .balance-text { color: #007bff; font-weight: bold; font-size: 26px;}
-    .step-box { background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #007bff; margin-bottom: 15px;}
+    .summary-card {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        border-top: 6px solid;
+        margin-bottom: 20px;
+    }
+    .card-income { border-top-color: #28a745; }
+    .card-expense { border-top-color: #dc3545; }
+    .card-balance { border-top-color: #007bff; }
+    
+    .metric-label { font-size: 16px; color: #6c757d; font-weight: bold; margin-bottom: 5px; }
+    .metric-value { font-size: 26px; font-weight: bold; }
+    
+    .income-text { color: #28a745; }
+    .expense-text { color: #dc3545; }
+    .balance-text { color: #007bff; }
+    
+    .step-box { 
+        background-color: #f8f9fa; 
+        padding: 20px; 
+        border-radius: 12px; 
+        border-left: 6px solid #007bff; 
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .total-box {
+        text-align: right; 
+        font-size: 18px; 
+        background-color: #f1f3f5;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -78,13 +112,13 @@ if check_password():
             
             if flash_type == "ဝင်ငွေ":
                 st.markdown(f"""
-                <div style="background-color: #d4edda; border-left: 6px solid #28a745; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <div style="background-color: #d4edda; border-left: 6px solid #28a745; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <h4 style="color: #155724; margin: 0;">✅ {flash_msg}</h4>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
-                <div style="background-color: #f8d7da; border-left: 6px solid #dc3545; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <div style="background-color: #f8d7da; border-left: 6px solid #dc3545; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <h4 style="color: #721c24; margin: 0;">🔻 {flash_msg}</h4>
                 </div>
                 """, unsafe_allow_html=True)
@@ -136,7 +170,6 @@ if check_password():
                 st.session_state['saved_comp'] = settings_ws.acell('B1').value
                 st.session_state['saved_actual'] = settings_ws.acell('B2').value
             except Exception:
-                # Worksheet မရှိသေးပါက အလိုအလျောက် အသစ်ဖန်တီးပေးမည်
                 settings_ws = client.open(SHEET_NAME).add_worksheet(title="Saved_Balances", rows=5, cols=2)
                 settings_ws.update_acell('A1', "Computer Balance")
                 settings_ws.update_acell('A2', "Actual Cash")
@@ -148,21 +181,38 @@ if check_password():
         if not df.empty:
             df['ပမာဏ'] = pd.to_numeric(df['ပမာဏ'], errors='coerce').fillna(0)
             
-            # (၅) ယနေ့ အကျဉ်းချုပ် တွက်ချက်ခြင်း (အကြွေးစာရင်းတွေကို မဖယ်ထုတ်ဘဲ မူလအတိုင်းတွက်ချက်မည်)
+            # (၅) ယနေ့ အကျဉ်းချုပ် တွက်ချက်ခြင်း 
             total_income = df[df['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
             total_expense = df[df['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
             system_total_balance = total_income - total_expense
             
+            # 🌟 လှပသော ယနေ့အကျဉ်းချုပ် Dashboard
             st.markdown("---")
-            st.subheader("💰 ယနေ့ အကျဉ်းချုပ်")
+            st.markdown("### 💰 ယနေ့ အကျဉ်းချုပ်")
+            
             colA, colB, colC = st.columns(3)
             with colA:
-                st.markdown(f"**စုစုပေါင်း ဝင်ငွေ**<br><span class='income-text'>+ {total_income:,.0f} Ks</span>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="summary-card card-income">
+                    <div class="metric-label">📈 စုစုပေါင်း ဝင်ငွေ</div>
+                    <div class="metric-value income-text">+ {total_income:,.0f} <span style="font-size:18px;">Ks</span></div>
+                </div>
+                """, unsafe_allow_html=True)
             with colB:
-                st.markdown(f"**စုစုပေါင်း ထွက်ငွေ**<br><span class='expense-text'>- {total_expense:,.0f} Ks</span>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="summary-card card-expense">
+                    <div class="metric-label">📉 စုစုပေါင်း ထွက်ငွေ</div>
+                    <div class="metric-value expense-text">- {total_expense:,.0f} <span style="font-size:18px;">Ks</span></div>
+                </div>
+                """, unsafe_allow_html=True)
             with colC:
-                balance_color = "income-text" if system_total_balance >= 0 else "expense-text"
-                st.markdown(f"**ကွန်ပျူတာရှိငွေ စုစုပေါင်း**<br><span class='{balance_color}'>{system_total_balance:,.0f} Ks</span>", unsafe_allow_html=True)
+                bal_class = "income-text" if system_total_balance >= 0 else "expense-text"
+                st.markdown(f"""
+                <div class="summary-card card-balance">
+                    <div class="metric-label">💻 ကွန်ပျူတာရှိငွေ</div>
+                    <div class="metric-value {bal_class}">{system_total_balance:,.0f} <span style="font-size:18px;">Ks</span></div>
+                </div>
+                """, unsafe_allow_html=True)
             
             # (၆) အကြွေးစာရင်း ဇယား (လူ ၄ ယောက်)
             st.markdown("---")
@@ -185,6 +235,9 @@ if check_password():
                 return ['background-color: #e6f2ff; color: #004080; font-weight: bold'] * len(row)
             
             st.dataframe(debt_df.style.apply(style_debt, axis=1).format({'ရရန်ရှိသော အကြွေး (Ks)': "{:,.0f}"}), use_container_width=True)
+            
+            # 🌟 အကြွေးစုစုပေါင်းကို ဇယားအောက်တွင် ပြသခြင်း
+            st.markdown(f"<div class='total-box'><b>စုစုပေါင်း ရရန်ရှိသော အကြွေး: <span style='color: #cc0000;'>{total_debt:,.0f} Ks</span></b></div>", unsafe_allow_html=True)
 
             # (၇) ဘဏ် နှင့် Kpay စာရင်း ဇယား
             st.markdown("---")
@@ -207,6 +260,9 @@ if check_password():
                 return ['background-color: #f8f9fa; color: #6c757d; font-weight: bold'] * len(row)
                 
             st.dataframe(bank_table_df.style.apply(style_bank, axis=1).format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
+            
+            # 🌟 ဘဏ်နှင့် Kpay စုစုပေါင်းကို ဇယားအောက်တွင် ပြသခြင်း
+            st.markdown(f"<div class='total-box'><b>(Kpay + ဘဏ်) စုစုပေါင်း လက်ကျန်: <span style='color: #004d00;'>{total_bank:,.0f} Ks</span></b></div>", unsafe_allow_html=True)
 
             # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
             st.markdown("---")
@@ -272,7 +328,7 @@ if check_password():
                 comp_bal = float(clean_comp_bal)
                 actual_cash = float(clean_actual_cash)
                 
-                # တွက်ချက်မှု အဆင့် (၃) ဆင့် (အကြွေးကို မဖယ်ထုတ်ဘဲ မူလအတိုင်း တွက်ချက်မည်) [cite: 89, 90]
+                # တွက်ချက်မှု အဆင့် (၃) ဆင့် (မူလအတိုင်း)
                 step_1 = comp_bal - actual_cash
                 step_2 = step_1 - total_debt
                 final_variance = step_2 - total_bank
@@ -285,7 +341,7 @@ if check_password():
                     🔹 <b>အဆင့် ၂:</b> ရလဒ် ({step_1:,.0f}) မှ လူ(၄)ယောက်၏ အကြွေးစုစုပေါင်း ({total_debt:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
                     &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_2:,.0f} Ks</b><br><br>
                     🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
-                    &nbsp;&nbsp;&nbsp;&nbsp;နောက်ဆုံး ကွာခြားချက် = <b style="color: {'#1e7e34' if final_variance == 0 else '#dc3545'}; font-size: 20px;">{final_variance:,.0f} Ks</b>
+                    &nbsp;&nbsp;&nbsp;&nbsp;နောက်ဆုံး ကွာခြားချက် = <b style="color: {'#1e7e34' if final_variance == 0 else '#dc3545'}; font-size: 22px;">{final_variance:,.0f} Ks</b>
                 </div>
                 """, unsafe_allow_html=True)
                 
