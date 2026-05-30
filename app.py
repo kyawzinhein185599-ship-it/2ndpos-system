@@ -266,7 +266,7 @@ if check_password():
                 
             st.dataframe(bank_table_df.style.apply(style_bank, axis=1).format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
             
-            # 🌟 လူကြီးမင်း တောင်းဆိုထားသည့်အတိုင်း ဇယားအောက်တွင် (၄) ခုစလုံးပေါင်းကို ပြသခြင်း
+            # 🌟 ဘဏ်နှင့် Kpay စုစုပေါင်းကို ဇယားအောက်တွင် ပြသခြင်း
             st.markdown(f"<div class='total-box'><b>(Kpay + ဘဏ်) စုစုပေါင်း လက်ကျန်: <span style='color: #004d00;'>{display_total_bank:,.0f} Ks</span></b></div>", unsafe_allow_html=True)
 
             # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
@@ -333,10 +333,13 @@ if check_password():
                 comp_bal = float(clean_comp_bal)
                 actual_cash = float(clean_actual_cash)
                 
-                # တွက်ချက်မှု အဆင့် (၃) ဆင့် (အဆင့် ၃ တွင် စာရင်းကိုက်စေရန် ကောင်တာရှိငွေကို နှုတ်ပယ်ထားပါသည်)
+                # တွက်ချက်မှု အဆင့် (၃) ဆင့် 
                 step_1 = comp_bal - actual_cash
                 step_2 = step_1 - total_debt
                 final_variance = step_2 - calc_total_bank
+                
+                # Error ထပ်မတက်စေရန် အရောင်ကို ကြိုတင်သတ်မှတ်ခြင်း
+                variance_color = "#1e7e34" if final_variance == 0 else "#dc3545"
                 
                 st.markdown(f"""
                 <div class="step-box">
@@ -345,4 +348,30 @@ if check_password():
                     &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_1:,.0f} Ks</b><br><br>
                     🔹 <b>အဆင့် ၂:</b> ရလဒ် ({step_1:,.0f}) မှ လူ(၄)ယောက်၏ အကြွေးစုစုပေါင်း ({total_debt:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
                     &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_2:,.0f} Ks</b><br><br>
-                    🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({calc_total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br
+                    🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({calc_total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;နောက်ဆုံး ကွာခြားချက် = <b style="color: {variance_color}; font-size: 22px;">{final_variance:,.0f} Ks</b>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if final_variance == 0:
+                    st.success("✅ စာရင်းအားလုံး တိကျစွာ ကိုက်ညီပါသည်။ (ကွာခြားချက်မရှိပါ)")
+                elif final_variance > 0:
+                    st.error(f"🔻 စာရင်းမကိုက်ပါ။ {final_variance:,.0f} ကျပ် လိုနေပါသည် (ငွေလိုနေသည်)။")
+                else:
+                    st.warning(f"⚠️ စာရင်းမကိုက်ပါ။ {abs(final_variance):,.0f} ကျပ် ပိုနေပါသည် (ငွေပိုနေသည်)။")
+                        
+            except ValueError:
+                st.error("ဂဏန်းများကို မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
+
+            # (၉) နေ့စဉ်မှတ်တမ်း ဇယား
+            st.markdown("---")
+            st.subheader("📋 နေ့စဉ် မှတ်တမ်းများ")
+            def highlight_rows(row):
+                if row['အမျိုးအစား'] == 'ဝင်ငွေ': return ['background-color: #e6ffe6; color: #004d00'] * len(row)
+                if row['အမျိုးအစား'] == 'ထွက်ငွေ': return ['background-color: #ffe6e6; color: #800000'] * len(row)
+                return [''] * len(row)
+            
+            st.dataframe(df.style.apply(highlight_rows, axis=1).format({"ပမာဏ": "{:,.0f}"}), use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Google Sheet နှင့် ချိတ်ဆက်ရာတွင် အခက်အခဲရှိနေပါသည်။ Error: {e}")
