@@ -131,7 +131,6 @@ if check_password():
             with col1:
                 trans_date = st.date_input("ရက်စွဲ", date.today())
                 trans_type = st.selectbox("အမျိုးအစား", ["ဝင်ငွေ", "ထွက်ငွေ"])
-                # 🌟 "လက်ထဲရှိငွေသား" ဟု အသစ်ထည့်သွင်းပေးထားပါသည်
                 account = st.selectbox("အကောင့် / နေရာ", ["လက်ထဲရှိငွေသား", "Kpay", "Bank 1", "Bank 2", "ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"])
             with col2:
                 desc = st.text_input("အကြောင်းအရာ")
@@ -244,7 +243,6 @@ if check_password():
             st.markdown("---")
             st.subheader("🏦 ဘဏ်၊ Kpay နှင့် လက်ထဲရှိငွေသား လက်ကျန်စာရင်း")
             bank_list = []
-            # 🌟 ဤနေရာတွင် "လက်ထဲရှိငွေသား" အကောင့်ကို အသစ်ထည့်သွင်းပေးထားပါသည်
             for b in ["လက်ထဲရှိငွေသား", "Kpay", "Bank 1", "Bank 2"]:
                 bank_df_temp = df[df['အကောင့်'] == b]
                 b_in = bank_df_temp[bank_df_temp['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
@@ -252,8 +250,12 @@ if check_password():
                 bank_list.append({'ဘဏ် / အကောင့် / နေရာ': b, 'လက်ကျန်ငွေ (Ks)': b_in - b_out})
                 
             bank_table_df = pd.DataFrame(bank_list)
-            # တွက်ချက်မှု ကွက်တိဖြစ်စေရန် (Kpay+ဘဏ်) စုစုပေါင်းတွင် လက်ထဲရှိငွေသားကို မထည့်သွင်းပါ
-            total_bank = bank_table_df[bank_table_df['ဘဏ် / အကောင့် / နေရာ'] != 'လက်ထဲရှိငွေသား']['လက်ကျန်ငွေ (Ks)'].sum()
+            
+            # 🌟 ပြသရန်အတွက် (၄) ခုစလုံးပေါင်းထားသော စုစုပေါင်းလက်ကျန်ငွေ
+            display_total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum()
+            
+            # 🌟 အဆင့် (၃) တွက်ချက်မှုအတွက် လက်ထဲရှိငွေသားကို ဖယ်ထားသော (Kpay+ဘဏ်) စုစုပေါင်း (စာရင်းကိုက်စေရန်)
+            calc_total_bank = bank_table_df[bank_table_df['ဘဏ် / အကောင့် / နေရာ'] != 'လက်ထဲရှိငွေသား']['လက်ကျန်ငွေ (Ks)'].sum()
             
             def style_bank(row):
                 if row['လက်ကျန်ငွေ (Ks)'] > 0:
@@ -264,8 +266,8 @@ if check_password():
                 
             st.dataframe(bank_table_df.style.apply(style_bank, axis=1).format({'လက်ကျန်ငွေ (Ks)': "{:,.0f}"}), use_container_width=True)
             
-            # 🌟 ဘဏ်နှင့် Kpay စုစုပေါင်းကို ဇယားအောက်တွင် ပြသခြင်း
-            st.markdown(f"<div class='total-box'><b>(Kpay + ဘဏ်) စုစုပေါင်း လက်ကျန်: <span style='color: #004d00;'>{total_bank:,.0f} Ks</span></b></div>", unsafe_allow_html=True)
+            # 🌟 လူကြီးမင်း တောင်းဆိုထားသည့်အတိုင်း ဇယားအောက်တွင် (၄) ခုစလုံးပေါင်းကို ပြသခြင်း
+            st.markdown(f"<div class='total-box'><b>(Kpay + ဘဏ်) စုစုပေါင်း လက်ကျန်: <span style='color: #004d00;'>{display_total_bank:,.0f} Ks</span></b></div>", unsafe_allow_html=True)
 
             # 🌟 (၈) စာရင်းချုပ် တိုက်ဆိုင်စစ်ဆေးခြင်း 
             st.markdown("---")
@@ -331,10 +333,10 @@ if check_password():
                 comp_bal = float(clean_comp_bal)
                 actual_cash = float(clean_actual_cash)
                 
-                # တွက်ချက်မှု အဆင့် (၃) ဆင့် (မူလအတိုင်း)
+                # တွက်ချက်မှု အဆင့် (၃) ဆင့် (အဆင့် ၃ တွင် စာရင်းကိုက်စေရန် ကောင်တာရှိငွေကို နှုတ်ပယ်ထားပါသည်)
                 step_1 = comp_bal - actual_cash
                 step_2 = step_1 - total_debt
-                final_variance = step_2 - total_bank
+                final_variance = step_2 - calc_total_bank
                 
                 st.markdown(f"""
                 <div class="step-box">
@@ -343,30 +345,4 @@ if check_password():
                     &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_1:,.0f} Ks</b><br><br>
                     🔹 <b>အဆင့် ၂:</b> ရလဒ် ({step_1:,.0f}) မှ လူ(၄)ယောက်၏ အကြွေးစုစုပေါင်း ({total_debt:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
                     &nbsp;&nbsp;&nbsp;&nbsp;ရလဒ် = <b>{step_2:,.0f} Ks</b><br><br>
-                    🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br>
-                    &nbsp;&nbsp;&nbsp;&nbsp;နောက်ဆုံး ကွာခြားချက် = <b style="color: {'#1e7e34' if final_variance == 0 else '#dc3545'}; font-size: 22px;">{final_variance:,.0f} Ks</b>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                if final_variance == 0:
-                    st.success("✅ စာရင်းအားလုံး တိကျစွာ ကိုက်ညီပါသည်။ (ကွာခြားချက်မရှိပါ)")
-                elif final_variance > 0:
-                    st.error(f"🔻 စာရင်းမကိုက်ပါ။ {final_variance:,.0f} ကျပ် လိုနေပါသည် (ငွေလိုနေသည်)။")
-                else:
-                    st.warning(f"⚠️ စာရင်းမကိုက်ပါ။ {abs(final_variance):,.0f} ကျပ် ပိုနေပါသည် (ငွေပိုနေသည်)။")
-                        
-            except ValueError:
-                st.error("ဂဏန်းများကို မှန်ကန်စွာ ရိုက်ထည့်ပါ။")
-
-            # (၉) နေ့စဉ်မှတ်တမ်း ဇယား
-            st.markdown("---")
-            st.subheader("📋 နေ့စဉ် မှတ်တမ်းများ")
-            def highlight_rows(row):
-                if row['အမျိုးအစား'] == 'ဝင်ငွေ': return ['background-color: #e6ffe6; color: #004d00'] * len(row)
-                if row['အမျိုးအစား'] == 'ထွက်ငွေ': return ['background-color: #ffe6e6; color: #800000'] * len(row)
-                return [''] * len(row)
-            
-            st.dataframe(df.style.apply(highlight_rows, axis=1).format({"ပမာဏ": "{:,.0f}"}), use_container_width=True)
-
-    except Exception as e:
-        st.error(f"Google Sheet နှင့် ချိတ်ဆက်ရာတွင် အခက်အခဲရှိနေပါသည်။ Error: {e}")
+                    🔹 <b>အဆင့် ၃:</b> ရလဒ် ({step_2:,.0f}) မှ (Kpay+ဘဏ်၁+ဘဏ်၂) စုစုပေါင်း ({calc_total_bank:,.0f}) ကိုထပ်နှုတ်ခြင်း<br
