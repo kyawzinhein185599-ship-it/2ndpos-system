@@ -131,7 +131,8 @@ if check_password():
             with col1:
                 trans_date = st.date_input("ရက်စွဲ", date.today())
                 trans_type = st.selectbox("အမျိုးအစား", ["ဝင်ငွေ", "ထွက်ငွေ"])
-                account = st.selectbox("အကောင့် / နေရာ", ["Cash", "Kpay", "Bank 1", "Bank 2", "ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"])
+                # 🌟 "လက်ထဲရှိငွေသား" ဟု အသစ်ထည့်သွင်းပေးထားပါသည်
+                account = st.selectbox("အကောင့် / နေရာ", ["လက်ထဲရှိငွေသား", "Kpay", "Bank 1", "Bank 2", "ကိုရောင်နီ", "နေလင်းစိုး", "သက်အောင်လွင်", "ညီညီ"])
             with col2:
                 desc = st.text_input("အကြောင်းအရာ")
                 amount_str = st.text_input("ပမာဏ (ကျပ်)", value="0")
@@ -239,18 +240,20 @@ if check_password():
             # 🌟 အကြွေးစုစုပေါင်းကို ဇယားအောက်တွင် ပြသခြင်း
             st.markdown(f"<div class='total-box'><b>စုစုပေါင်း ရရန်ရှိသော အကြွေး: <span style='color: #cc0000;'>{total_debt:,.0f} Ks</span></b></div>", unsafe_allow_html=True)
 
-            # (၇) ဘဏ် နှင့် Kpay စာရင်း ဇယား
+            # (၇) ဘဏ်၊ Kpay နှင့် လက်ထဲရှိငွေသား လက်ကျန်စာရင်း
             st.markdown("---")
-            st.subheader("🏦 ဘဏ် နှင့် Kpay လက်ကျန်စာရင်း")
+            st.subheader("🏦 ဘဏ်၊ Kpay နှင့် လက်ထဲရှိငွေသား လက်ကျန်စာရင်း")
             bank_list = []
-            for b in ["Kpay", "Bank 1", "Bank 2"]:
+            # 🌟 ဤနေရာတွင် "လက်ထဲရှိငွေသား" အကောင့်ကို အသစ်ထည့်သွင်းပေးထားပါသည်
+            for b in ["လက်ထဲရှိငွေသား", "Kpay", "Bank 1", "Bank 2"]:
                 bank_df_temp = df[df['အကောင့်'] == b]
                 b_in = bank_df_temp[bank_df_temp['အမျိုးအစား'] == 'ဝင်ငွေ']['ပမာဏ'].sum()
                 b_out = bank_df_temp[bank_df_temp['အမျိုးအစား'] == 'ထွက်ငွေ']['ပမာဏ'].sum()
-                bank_list.append({'ဘဏ် / အကောင့်': b, 'လက်ကျန်ငွေ (Ks)': b_in - b_out})
+                bank_list.append({'ဘဏ် / အကောင့် / နေရာ': b, 'လက်ကျန်ငွေ (Ks)': b_in - b_out})
                 
             bank_table_df = pd.DataFrame(bank_list)
-            total_bank = bank_table_df['လက်ကျန်ငွေ (Ks)'].sum()
+            # တွက်ချက်မှု ကွက်တိဖြစ်စေရန် (Kpay+ဘဏ်) စုစုပေါင်းတွင် လက်ထဲရှိငွေသားကို မထည့်သွင်းပါ
+            total_bank = bank_table_df[bank_table_df['ဘဏ် / အကောင့် / နေရာ'] != 'လက်ထဲရှိငွေသား']['လက်ကျန်ငွေ (Ks)'].sum()
             
             def style_bank(row):
                 if row['လက်ကျန်ငွေ (Ks)'] > 0:
